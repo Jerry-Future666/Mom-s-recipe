@@ -1,0 +1,1139 @@
+/* ==========================================================================
+   妈妈的菜谱 · 组件与页面样式
+   顺序：基础 → 外壳 → 通用组件 → 首页 → 点餐 → 搜索 → 结算
+        → 菜谱查询 → 菜谱详情 → 导入/导出 → 浮层（弹窗/抽屉/飞点/提示）
+   ========================================================================== */
+
+/* ------------------------------ 基础 ------------------------------ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--c-ink);
+  background: #F3ECE7;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button, input, textarea { font: inherit; color: inherit; }
+button { border: 0; background: none; padding: 0; cursor: pointer; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+h1, h2, h3, p { margin: 0; }
+img { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+
+/* ------------------------------ 应用外壳 ------------------------------ */
+.app {
+  position: relative;
+  width: 100%;
+  max-width: var(--app-w);
+  height: 100vh;
+  height: 100dvh;
+  margin: 0 auto;
+  background: var(--c-bg);
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(43, 36, 32, .04), 0 24px 60px rgba(43, 36, 32, .10);
+}
+
+@media (max-width: 520px) {
+  .app { max-width: none; box-shadow: none; }
+}
+
+.stage { position: absolute; inset: 0; }
+
+/* 视图：默认隐藏，切换时保留 DOM（滚动位置可精确写回） */
+.view {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  background: var(--c-bg);
+}
+.view.is-active { display: flex; }
+
+.view-enter { animation: viewIn var(--t-base) var(--ease-out) both; }
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.view-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ------------------------------ 顶栏 ------------------------------ */
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;            /* 按钮多的时候整组换到第二行，标题不会被挤没 */
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  padding-top: calc(var(--sp-3) + var(--safe-t));
+  background: rgba(255, 249, 245, .94);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  z-index: 5;
+}
+
+.topbar-title {
+  flex: 1;                    /* 撑满，把右侧按钮顶到最右边 */
+  min-width: 2.6em;           /* 但按钮太多时不会被压没，而是整组换到第二行 */
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  letter-spacing: .3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 顶栏右侧的动作按钮组：屏幕放不下时整组换行，组内再放不下就组内换行 */
+.top-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.icon-btn {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  color: var(--c-ink);
+  transition: background var(--t-fast);
+}
+.icon-btn:active { background: var(--c-line); }
+.icon-btn svg { width: 22px; height: 22px; }
+
+.back-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--tap);
+  padding: 0 var(--sp-3) 0 2px;
+  margin-left: -6px;
+  border-radius: var(--r-pill);
+  color: var(--c-ink-2);
+  font-size: var(--fs-base);
+  transition: background var(--t-fast);
+}
+.back-btn:active { background: var(--c-line); }
+.back-btn svg { width: 20px; height: 20px; }
+
+/* 顶栏里的低调文字入口（批量删除 / 清除全部 / 切换身份 / 继续点餐） */
+.link-btn {
+  flex: none;
+  height: var(--tap);
+  padding: 0 var(--sp-1);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  transition: color var(--t-fast);
+}
+.link-btn:active { color: var(--c-primary); }
+
+/* 批量删除：文字位置固定，只在左边增加垃圾桶 */
+.batch-btn {
+  position: relative;
+  flex: none;
+  height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-1) 0 20px;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  transition: color var(--t-fast);
+}
+.batch-btn .batch-del {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--c-danger);
+  transform: translateY(-50%) scale(.6);
+  opacity: 0;
+  transition: opacity var(--t-fast), transform var(--t-fast) var(--ease);
+}
+.batch-btn .batch-del svg { width: 16px; height: 16px; }
+.batch-btn.is-batch { color: var(--c-ink); }
+.batch-btn.is-batch .batch-del { opacity: 1; transform: translateY(-50%) scale(1); }
+
+/* ------------------------------ 缩略图（渐变 + 首字占位，真实图片覆盖其上） ------------------------------ */
+.thumb {
+  position: relative;
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--ph-bg, var(--c-bg-2));
+}
+.thumb-ph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ph-ink, var(--c-ink-3));
+  user-select: none;
+}
+.thumb img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ------------------------------ 统一操作按钮（＋ / 垃圾桶） ------------------------------ */
+.act-btn {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  margin-right: -8px;
+}
+.act {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  transition: transform var(--t-fast) var(--ease), background var(--t-fast), color var(--t-fast);
+}
+.act svg { width: 18px; height: 18px; }
+.act:active { transform: scale(.86); }
+.act-add {
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+  box-shadow: inset 0 0 0 1px var(--c-primary-line);
+}
+.act-del {
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+}
+
+/* ------------------------------ 菜品行（点餐页 / 搜索页 / 购物袋 / 导入页共用） ------------------------------ */
+.dish-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-card);
+  border-bottom: 1px solid var(--c-line);   /* 点餐页：浅灰色实线 */
+  transition: background var(--t-fast);
+}
+.dish-row:active { background: #FFFCFA; }
+
+.dish-main { flex: 1; min-width: 0; }
+.dish-name {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dish-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-md);
+  color: var(--c-ink-3);
+  min-width: 0;
+}
+/* 点餐页：描述前显示菜品编码 */
+.dish-meta .code {
+  flex: none;
+  color: var(--c-ink-2);
+  font-weight: 600;
+  letter-spacing: .4px;
+  font-variant-numeric: tabular-nums;
+}
+.dish-meta .desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------ 首页 ------------------------------ */
+.home {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--sp-6) calc(var(--sp-7) + var(--safe-b));
+  text-align: center;
+}
+.home-logo {
+  width: 68px;
+  height: 68px;
+  border-radius: var(--r-xl);
+  display: grid;
+  place-items: center;
+  background: linear-gradient(140deg, var(--c-primary-2), var(--c-primary));
+  box-shadow: var(--shadow-fab);
+}
+.home-logo svg { width: 34px; height: 34px; color: #fff; }
+.home-title {
+  margin-top: var(--sp-5);
+  font-size: var(--fs-3xl);
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+.home-sub {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-md);
+  color: var(--c-ink-3);
+  letter-spacing: .6px;
+}
+
+.role-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+  width: 100%;
+  margin-top: var(--sp-7);
+}
+.role-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-3);
+  border-radius: var(--r-xl);
+  background: var(--c-card);
+  box-shadow: var(--sh-1);
+  transition: transform var(--t-fast) var(--ease),
+              background var(--t-base),
+              box-shadow var(--t-base);
+}
+.role-card:active { transform: scale(.97); }
+/* 当前身份的小标记 */
+.role-tag {
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--c-primary);
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: .5px;
+}
+.role-emoji {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: var(--c-primary-soft);
+  font-size: 24px;
+}
+/* 已经是这个身份时，给一个更轻的描边（必须排在 is-picked 前面，
+   这样"点当前身份"时更强的那套反馈仍然生效） */
+.role-card.is-current {
+  box-shadow: inset 0 0 0 1.5px var(--c-primary-line), var(--sh-1);
+}
+.role-card.is-picked {
+  background: linear-gradient(160deg, #FFF3ED, #FFE8DE);
+  box-shadow: inset 0 0 0 2px var(--c-primary), 0 10px 24px rgba(232, 85, 47, .18);
+}
+.role-name { font-size: var(--fs-lg); font-weight: 600; }
+.role-desc { font-size: var(--fs-sm); color: var(--c-ink-3); line-height: 1.4; }
+
+.welcome {
+  margin-top: var(--sp-7);
+  height: 30px;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--c-primary);
+  letter-spacing: 1px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity var(--t-base) var(--ease-out), transform var(--t-base) var(--ease-out);
+}
+.welcome.is-on { opacity: 1; transform: none; }
+
+.progress-wrap {
+  margin-top: var(--sp-3);
+  width: 180px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--c-line);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--t-base);
+}
+.progress-wrap.is-on { opacity: 1; }
+.progress-bar {
+  height: 100%;
+  width: 0;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--c-primary-2), var(--c-primary));
+  transition: width 1200ms linear;
+}
+
+/* ------------------------------ 点餐页 ------------------------------ */
+.order-layout { flex: 1; min-height: 0; display: flex; }
+
+/* 左：固定分类栏 */
+.cat-rail {
+  position: relative;          /* 高亮块的定位基准 */
+  flex: none;
+  width: 96px;
+  overflow-y: auto;
+  padding: var(--sp-2) 0 60px;
+  background: var(--c-bg-2);
+  scrollbar-width: none;
+}
+.cat-rail::-webkit-scrollbar { display: none; }
+
+/* 滑动的高亮块：位置由 JS 用 transform 给出，位移交给这条运动曲线 */
+.cat-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  z-index: 0;
+  background: var(--c-card);
+  transition: transform 300ms cubic-bezier(.34, 1.16, .5, 1),
+              height 300ms cubic-bezier(.34, 1.16, .5, 1);
+  pointer-events: none;
+}
+.cat-thumb::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 0 3px 3px 0;
+  background: var(--c-primary);
+}
+
+.cat-item {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  padding: var(--sp-4) 6px;
+  text-align: center;
+  font-size: var(--fs-md);
+  line-height: 1.25;
+  color: var(--c-ink-2);
+  background: none;
+  transition: color var(--t-fast);
+}
+.cat-item.is-active {
+  color: var(--c-primary);
+  font-weight: 600;
+  background: none;            /* 背景交给 .cat-thumb，避免瞬间切换 */
+}
+
+/* 右：一条连续的纵向菜品流 */
+.dish-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--c-card);
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 120px;
+}
+.group-title {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--sp-3) var(--sp-4) var(--sp-2);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--c-ink-2);
+  letter-spacing: .6px;
+  background: linear-gradient(var(--c-card) 76%, rgba(255, 255, 255, 0));
+}
+.list-end {
+  padding: var(--sp-5) var(--sp-4) var(--sp-6);
+  text-align: center;
+  font-size: var(--fs-md);
+  color: var(--c-ink-3);
+  letter-spacing: .5px;
+}
+/* 最后一道菜不留下悬空的分隔线 */
+.dish-group:last-of-type .dish-row:last-child { border-bottom: 0; }
+
+/* ------------------------------ 搜索页 ------------------------------ */
+.search-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--c-line);
+  background: var(--c-card);
+  font-size: 16px; /* 避免 iOS 聚焦自动放大 */
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.search-input:focus {
+  border-color: var(--c-primary-line);
+  box-shadow: 0 0 0 3px var(--c-primary-soft);
+}
+/* 搜索框旁边直接显示"搜索"，不做矩形按钮 */
+.search-go {
+  flex: none;
+  padding: 0 var(--sp-1);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--c-primary);
+}
+.search-go[disabled] { color: var(--c-ink-3); font-weight: 400; }
+.search-hint { padding: var(--sp-7) var(--sp-6); text-align: center; color: var(--c-ink-3); font-size: var(--fs-md); line-height: 1.9; }
+.search-count { padding: var(--sp-3) var(--sp-4) var(--sp-1); font-size: var(--fs-sm); color: var(--c-ink-3); }
+
+/* ------------------------------ 结算页 ------------------------------ */
+.checkout-hero { padding: var(--sp-2) var(--sp-5) var(--sp-5); }
+.checkout-hero h1 { font-size: var(--fs-2xl); font-weight: 700; line-height: 1.45; }
+.checkout-hero p { margin-top: var(--sp-3); font-size: var(--fs-md); color: var(--c-ink-3); line-height: 1.7; }
+.checkout-list {
+  margin: 0 var(--sp-4);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--c-card);
+  box-shadow: var(--sh-1);
+}
+.checkout-list .dish-row:last-child { border-bottom: 0; }
+.checkout-foot {
+  flex: none;
+  padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + var(--safe-b));
+  border-top: 1px solid var(--c-line);
+  background: var(--c-card);
+}
+.checkout-foot .btn-primary { width: 100%; height: 50px; }
+
+/* ------------------------------ 菜谱查询页 ------------------------------ */
+.tabs {
+  position: relative;          /* 滑块定位基准 */
+  flex: none;
+  display: flex;
+  padding: 0 var(--sp-3) var(--sp-3);
+  background: rgba(255, 249, 245, .94);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--c-line);
+}
+
+/* 页签的滑动高亮：位置和尺寸由 JS 给出，滑动交给这条带轻微回弹的曲线 */
+.tab-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  border-radius: var(--r-pill);
+  background: var(--c-primary);
+  box-shadow: 0 6px 14px rgba(232, 85, 47, .28);
+  transition: transform 320ms cubic-bezier(.34, 1.24, .5, 1),
+              width 320ms cubic-bezier(.34, 1.24, .5, 1);
+  pointer-events: none;
+}
+
+/* 等宽分段：选中加粗也不会改变宽度，旁边的按钮不会被顶开 */
+.tab {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px var(--sp-2);
+  text-align: center;
+  white-space: nowrap;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-base);
+  color: var(--c-ink-2);
+  background: none;
+  box-shadow: none;
+  transition: color var(--t-fast);
+}
+.tab.is-active {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 批量删除的样式统一放在顶栏那一节（见 .link-btn 附近），这里不再重复定义 */
+
+/* 分类：虚线分割 + 大字号分类名 */
+.dash {
+  height: 1px;
+  margin: 0 var(--sp-4);
+  background-image: linear-gradient(to right, var(--c-line-2) 55%, transparent 0);
+  background-size: 11px 1px;
+  background-repeat: repeat-x;
+}
+.cat-title-lg {
+  padding: var(--sp-3) var(--sp-4) var(--sp-3);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: .8px;
+}
+.cat-block { padding-top: var(--sp-1); }
+
+/* 双列卡片：上方图片，下方菜名 + 查看菜谱（不显示描述） */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4) var(--sp-5);
+}
+.card {
+  position: relative;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--c-card);
+  box-shadow: var(--sh-1);
+  transition: transform var(--t-fast) var(--ease), filter var(--t-base),
+              opacity var(--t-base), box-shadow var(--t-slow) var(--ease);
+}
+.card:active { transform: scale(.98); }
+/* 从菜谱返回时，把刚才看的那张卡片短暂高亮，明确「回到这了」 */
+.card.is-flash { box-shadow: 0 0 0 2px var(--c-primary), 0 10px 26px rgba(232, 85, 47, .28); }
+.card-media {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  background: var(--ph-bg, var(--c-bg-2));
+}
+.card-media .thumb-ph { font-size: 32px; }
+.card-media img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.card-body { padding: var(--sp-3) var(--sp-3) var(--sp-3); }
+.card-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1.4;
+  min-height: 2.8em;
+}
+.card-link {
+  margin-top: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-primary);
+}
+
+/* 批量选择状态 */
+.card-check {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  display: none;
+  place-items: center;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: inset 0 0 0 1.5px var(--c-line-2);
+  color: transparent;
+  transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+}
+.card-check svg { width: 14px; height: 14px; }
+.grid.is-batch .card-check { display: grid; }
+.card.is-picked .card-check {
+  background: var(--c-primary);
+  box-shadow: none;
+  color: #fff;
+}
+.card.is-picked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(43, 36, 32, .30);
+}
+.card.is-picked { filter: saturate(.85); }
+
+/* 共同选择：置顶区块 */
+.common-block {
+  margin: var(--sp-3) var(--sp-3) var(--sp-2);
+  padding: var(--sp-3) var(--sp-1) var(--sp-1);
+  border-radius: var(--r-xl);
+  background: linear-gradient(165deg, var(--c-primary-soft), #FFF9F6);
+  box-shadow: inset 0 0 0 1px var(--c-primary-line);
+}
+.common-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4) var(--sp-2);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--c-primary);
+  letter-spacing: .6px;
+}
+.common-head svg { width: 20px; height: 20px; }
+.common-block .dash { background-image: linear-gradient(to right, var(--c-primary-line) 55%, transparent 0); }
+.common-block .cat-title-lg { font-size: var(--fs-lg); padding: var(--sp-3) var(--sp-4) var(--sp-2); }
+.common-block .grid { padding: 0 var(--sp-3) var(--sp-3); gap: var(--sp-2); }
+.common-block .card-name { font-size: var(--fs-md); }
+
+/* ------------------------------ 空状态 ------------------------------ */
+.empty { padding: 64px var(--sp-7) 40px; text-align: center; }
+.empty-emoji { font-size: 38px; line-height: 1; }
+.empty-title { margin-top: var(--sp-4); font-size: var(--fs-lg); font-weight: 600; color: var(--c-ink-2); }
+.empty-desc { margin-top: var(--sp-2); font-size: var(--fs-md); color: var(--c-ink-3); line-height: 1.8; }
+.empty .btn-primary { display: inline-flex; align-items: center; margin-top: var(--sp-5); }
+
+/* ------------------------------ 菜谱详情页 ------------------------------ */
+.rd { padding: var(--sp-2) var(--sp-5) 80px; }
+.rd-name {
+  font-size: var(--fs-3xl);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: .5px;
+}
+.rd-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--sp-3);
+  height: 36px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-pill);
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--c-primary-line);
+  transition: transform var(--t-fast);
+}
+.rd-link:active { transform: scale(.96); }
+.rd-link svg { width: 15px; height: 15px; }
+.rd-dash { margin: var(--sp-5) 0; }
+.rd-steps li {
+  display: flex;
+  gap: var(--sp-3);
+  padding: 11px 0;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #3B332D;
+}
+.rd-steps .num {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 4px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.rd-code {
+  padding-top: var(--sp-1);
+  font-size: var(--fs-md);
+  color: var(--c-ink-3);
+  letter-spacing: 1.2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 刚刚看到的位置：5 秒后自动消失，绝不自动跳转 */
+.jump-pill {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--sp-6) + var(--safe-b));
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 var(--sp-5);
+  border-radius: var(--r-pill);
+  background: rgba(43, 36, 32, .88);
+  color: #fff;
+  font-size: var(--fs-md);
+  box-shadow: var(--sh-2);
+  opacity: 0;
+  transform: translateX(-50%) translateY(12px);
+  transition: opacity var(--t-base), transform var(--t-base) var(--ease-out);
+}
+.jump-pill.is-in { opacity: 1; transform: translateX(-50%); }
+.jump-pill svg { width: 15px; height: 15px; }
+
+/* ------------------------------ 导入 / 导出 ------------------------------ */
+.io { padding: var(--sp-2) var(--sp-5) 60px; }
+.io-title { font-size: var(--fs-xl); font-weight: 600; line-height: 1.5; }
+.io-hint { margin-top: var(--sp-2); font-size: var(--fs-md); color: var(--c-ink-3); line-height: 1.7; }
+
+.input-row { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-4); }
+.text-input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-line-2);
+  background: var(--c-card);
+  font-size: 16px;
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.text-input:focus {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px var(--c-primary-soft);
+}
+/* ✓ 输入前灰色，有内容后变绿 */
+.check-btn {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-md);
+  display: grid;
+  place-items: center;
+  background: var(--c-bg-2);
+  color: var(--c-ink-3);
+  transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-base), transform var(--t-fast);
+}
+.check-btn svg { width: 22px; height: 22px; }
+.check-btn.is-ready {
+  background: var(--c-ok);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(63, 164, 91, .30);
+}
+.check-btn:active { transform: scale(.94); }
+
+.select-all {
+  display: block;
+  margin-top: var(--sp-3);
+  padding: var(--sp-1) 0;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--c-primary);
+}
+.solid-line { height: 1px; background: var(--c-line); margin: var(--sp-4) 0 var(--sp-5); }
+
+.stamp-label { font-size: var(--fs-md); color: var(--c-ink-3); }
+.stamp-value {
+  margin-top: 6px;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.io-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: var(--sp-6);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--c-ink-2);
+}
+.io-sub .count { font-size: var(--fs-sm); font-weight: 400; color: var(--c-ink-3); }
+.io-error { margin-top: var(--sp-3); font-size: var(--fs-md); color: var(--c-danger); line-height: 1.7; }
+
+.row-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.row-card .thumb { width: 56px; height: 56px; border-radius: var(--r-sm); }
+.row-card .thumb-ph { font-size: 20px; }
+.row-card .rc-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-box {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  border: 1px dashed var(--c-line-2);
+  background: var(--c-card);
+  font-size: var(--fs-lg);
+  line-height: 1.8;
+  word-break: break-all;
+  font-variant-numeric: tabular-nums;
+}
+.copy-btn {
+  width: 100%;
+  height: 48px;
+  margin-top: var(--sp-4);
+  border-radius: var(--r-pill);
+  background: linear-gradient(140deg, var(--c-primary-2), var(--c-primary));
+  color: #fff;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  box-shadow: var(--shadow-fab);
+  transition: transform var(--t-fast);
+}
+.copy-btn:active { transform: scale(.97); }
+
+/* ------------------------------ 右下角固定购物袋 ------------------------------ */
+.fab-bag {
+  position: absolute;
+  right: var(--sp-4);
+  bottom: calc(var(--sp-5) + var(--safe-b));
+  z-index: 40;
+  width: 58px;
+  height: 58px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: linear-gradient(140deg, var(--c-primary-2), var(--c-primary));
+  color: #fff;
+  box-shadow: var(--shadow-fab);
+  transition: transform var(--t-base) var(--ease), opacity var(--t-base);
+}
+.fab-bag[hidden] { display: none; }
+.fab-bag svg { width: 26px; height: 26px; }
+.fab-bag:active { transform: scale(.92); }
+.fab-bag.is-pulse { animation: bagPulse 340ms var(--ease); }
+.fab-bag.is-away { opacity: 0; transform: scale(.8); pointer-events: none; }
+@keyframes bagPulse {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+.fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: var(--c-primary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  border: 1.5px solid var(--c-primary);
+  box-shadow: 0 2px 6px rgba(43, 36, 32, .18);
+}
+.fab-badge[hidden] { display: none; }
+.fab-badge.is-pop { animation: badgePop 280ms var(--ease); }
+@keyframes badgePop {
+  0%   { transform: scale(.6); }
+  55%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* ------------------------------ 浮层容器 ------------------------------ */
+.layer { position: absolute; inset: 0; z-index: 60; pointer-events: none; }
+.layer > * { pointer-events: auto; }
+
+.mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(43, 36, 32, .34);
+  opacity: 0;
+  transition: opacity var(--t-base);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.mask.is-open { opacity: 1; }
+.mask.is-closing { opacity: 0; }
+
+/* 底部抽屉：购物袋确认区域 */
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  height: 34%;
+  min-height: 250px;
+  max-height: 46%;
+  padding-bottom: var(--safe-b);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--c-card);
+  box-shadow: var(--sh-3);
+  transform: translateY(101%);
+  transition: transform var(--t-base) var(--ease-out);
+}
+.sheet.is-open { transform: none; }
+.sheet-grab {
+  flex: none;
+  width: 40px;
+  height: 4px;
+  margin: var(--sp-2) auto 2px;
+  border-radius: 2px;
+  background: var(--c-line-2);
+}
+.sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-1) var(--sp-4) var(--sp-2);
+  font-size: var(--fs-md);
+  color: var(--c-ink-3);
+}
+.sheet-head .close-x { width: 32px; height: 32px; margin-right: -8px; display: grid; place-items: center; color: var(--c-ink-3); border-radius: var(--r-pill); }
+.sheet-head .close-x svg { width: 18px; height: 18px; }
+.sheet-body { flex: 1; min-height: 0; overflow-y: auto; background: var(--c-card); }
+.sheet-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--c-line);
+  background: var(--c-card);
+}
+.bag-count { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-base); color: var(--c-ink-2); }
+.bag-count svg { width: 20px; height: 20px; color: var(--c-primary); }
+.bag-count b { font-size: var(--fs-xl); color: var(--c-primary); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------ 按钮 ------------------------------ */
+.btn-primary {
+  display: inline-grid;
+  place-items: center;
+  height: var(--tap);
+  padding: 0 var(--sp-6);
+  border-radius: var(--r-pill);
+  background: linear-gradient(140deg, var(--c-primary-2), var(--c-primary));
+  color: #fff;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  box-shadow: var(--shadow-fab);
+  transition: transform var(--t-fast), background var(--t-base), box-shadow var(--t-base);
+}
+.btn-primary:active { transform: scale(.96); }
+.btn-primary[disabled] {
+  background: var(--c-line-2);
+  color: #fff;
+  box-shadow: none;
+  opacity: .75;
+}
+
+/* ------------------------------ 统一删除确认弹窗 ------------------------------ */
+.dialog-mask {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  background: rgba(43, 36, 32, .34);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.dialog-mask.is-open { opacity: 1; }
+.dialog {
+  width: 100%;
+  max-width: 300px;
+  padding: var(--sp-6) var(--sp-5) var(--sp-4);
+  border-radius: var(--r-xl);
+  background: var(--c-card);
+  box-shadow: var(--sh-3);
+  text-align: center;
+  opacity: 0;
+  transform: scale(.94);
+  transition: opacity var(--t-fast), transform var(--t-fast) var(--ease);
+}
+.dialog-mask.is-open .dialog { opacity: 1; transform: none; }
+.dialog-title { font-size: var(--fs-lg); font-weight: 600; }
+.dialog-sub { margin-top: 6px; font-size: var(--fs-md); color: var(--c-ink-3); }
+.dialog-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-5); }
+.dialog-actions button {
+  flex: 1;
+  height: var(--tap);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  transition: transform var(--t-fast);
+}
+.dialog-actions button:active { transform: scale(.97); }
+.btn-ghost { background: var(--c-bg-2); color: var(--c-ink-2); }
+.btn-danger { background: var(--c-danger); color: #fff; }
+
+/* ------------------------------ 飞向购物袋的小圆点 ------------------------------ */
+.fly-dot {
+  position: absolute;
+  z-index: 70;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--r-pill);
+  background: var(--c-primary);
+  box-shadow: 0 4px 10px rgba(232, 85, 47, .5);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* ------------------------------ 轻提示 ------------------------------ */
+.toast-host {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100px + var(--safe-b));
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+.toast {
+  max-width: 84%;
+  padding: 10px var(--sp-5);
+  border-radius: var(--r-pill);
+  background: rgba(43, 36, 32, .88);
+  color: #fff;
+  font-size: var(--fs-md);
+  line-height: 1.4;
+  animation: toastIn 220ms var(--ease-out) both;
+}
+.toast.is-out { animation: toastOut 200ms var(--ease) both; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
